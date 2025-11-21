@@ -12,5 +12,5 @@ import java.util.UUID;
 public class TicketSoldEvent {
     private UUID ticketId;
     private UUID transactionId;
-    private String buyerId;
+    private UUID buyerId;
 }
