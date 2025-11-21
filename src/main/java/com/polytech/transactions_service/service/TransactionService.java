@@ -5,6 +5,7 @@ import com.polytech.transactions_service.client.UserClient;
 import com.polytech.transactions_service.client.dto.TicketDto;
 import com.polytech.transactions_service.dto.CreateTransactionRequest;
 import com.polytech.transactions_service.dto.UserDto;
+import com.polytech.transactions_service.event.PaymentValidatedEvent;
 import com.polytech.transactions_service.event.TicketSoldEvent;
 import com.polytech.transactions_service.model.Transaction;
 import com.polytech.transactions_service.model.enums.PaymentStatus;
@@ -90,6 +91,16 @@ public class TransactionService {
         // 5. APPEL KAFKA (Asynchrone)
         TicketSoldEvent event = new TicketSoldEvent(ticket.getId(),transaction.getId() ,request.getUserId());
         kafkaTemplate.send("ticket-sold", event);
+
+        PaymentValidatedEvent paymentEvent = PaymentValidatedEvent.builder()
+                .transactionId(transaction.getId())
+                .buyerId(request.getUserId())
+                .vendorId(ticket.getVendorId())
+                .amount(request.getAmount())
+                .vendorAmount(savedTransaction.getVendorAmount())
+                .build();
+
+        kafkaTemplate.send("payment-validated", paymentEvent);
         return savedTransaction;
     }
     /**
