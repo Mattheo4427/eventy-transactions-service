@@ -50,12 +50,20 @@ public class TransactionController {
      */
     @GetMapping("/history")
     public ResponseEntity<List<Transaction>> getMyHistory(@AuthenticationPrincipal Jwt principal) {
-        String userId = principal.getSubject();
+        UUID userId = UUID.fromString(principal.getSubject());
         return ResponseEntity.ok(transactionService.getUserHistory(userId));
     }
     
     @GetMapping("/{id}")
     public ResponseEntity<Transaction> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(transactionService.getTransaction(id));
+    }
+
+    // GET /transactions/admin/all
+    @GetMapping("/admin/all")
+    // L'annotation @PreAuthorize est optionnelle si SecurityConfig gère déjà le path, mais c'est une bonne sécurité supplémentaire
+    // @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<Transaction>> getAllTransactions() {
+        return ResponseEntity.ok(transactionService.getAllTransactions());
     }
 }

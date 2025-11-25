@@ -70,7 +70,7 @@ public class TransactionService {
 
         // 4. CRÉATION TRANSACTION (PENDING)
         Transaction transaction = Transaction.builder()
-                .buyerId(String.valueOf(request.getUserId()))
+                .buyerId(UUID.fromString(String.valueOf(request.getUserId())))
                 .ticketId(request.getTicketId())
                 .totalAmount(request.getAmount())
                 .platformFee(request.getAmount() * PLATFORM_FEE_PERCENTAGE) // Ex: 5% frais
@@ -123,7 +123,7 @@ public class TransactionService {
 
         // 4. Création de l'objet Transaction
         Transaction transaction = Transaction.builder()
-                .buyerId(buyerId)
+                .buyerId(UUID.fromString(buyerId))
                 .ticketId(ticketId)
                 .totalAmount(total)
                 .platformFee(fees)
@@ -160,11 +160,15 @@ public class TransactionService {
         return transactionRepository.save(transaction);
     }
 
-    public List<Transaction> getUserHistory(String userId) {
+    public List<Transaction> getUserHistory(UUID userId) {
         return transactionRepository.findByBuyerId(userId);
     }
     
     public Transaction getTransaction(UUID id) {
         return transactionRepository.findById(id).orElseThrow();
+    }
+
+    public List<Transaction> getAllTransactions() {
+        return transactionRepository.findAll();
     }
 }

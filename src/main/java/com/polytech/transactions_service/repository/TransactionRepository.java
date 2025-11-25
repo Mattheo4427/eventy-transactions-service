@@ -10,7 +10,7 @@ import java.util.UUID;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
     // Historique des achats d'un utilisateur
-    List<Transaction> findByBuyerId(String buyerId);
+    List<Transaction> findByBuyerId(UUID buyerId);
     
     // Retrouver la transaction liée à un ticket spécifique
     List<Transaction> findByTicketId(UUID ticketId);

@@ -28,7 +28,7 @@ public class Transaction {
 
     // ID de l'acheteur (extrait du Token JWT)
     @Column(name = "buyer_id", nullable = false)
-    private String buyerId; // String car c'est souvent un UUID Keycloak stocké en String
+    private UUID buyerId; // String car c'est souvent un UUID Keycloak stocké en String
 
     // ID du ticket (référence vers Ticket Service)
     @Column(name = "ticket_id", nullable = false)
