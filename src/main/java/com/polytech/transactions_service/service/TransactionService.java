@@ -159,7 +159,7 @@ public class TransactionService {
         transaction.setValidationDate(LocalDateTime.now());
 
         Transaction savedTransaction = transactionRepository.save(transaction);
-
+        /*
         // 2. Changement de statut du ticket (Appel Synchrone)
         try {
             ticketClient.markTicketAsSold(transaction.getTicketId());
@@ -167,7 +167,7 @@ public class TransactionService {
             log.error("Erreur lors du marquage du ticket comme VENDU. Transaction ID: " + transactionId, e);
             // On ne rollback pas la transaction financière, mais on log l'erreur critique
         }
-
+        */
         // 3. Événements Kafka (Asynchrone) pour les autres services
         TicketSoldEvent soldEvent = new TicketSoldEvent(
                 transaction.getTicketId(),
