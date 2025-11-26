@@ -1,6 +1,6 @@
 package com.polytech.transactions_service.client;
 
-import com.polytech.transactions_service.client.dto.TicketDto;
+import com.polytech.transactions_service.dto.TicketDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

@@ -1,4 +1,4 @@
-package com.polytech.transactions_service.client.dto;
+package com.polytech.transactions_service.dto;
 
 import lombok.Data;
 import java.util.UUID;

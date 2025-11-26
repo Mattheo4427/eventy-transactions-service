@@ -10,5 +10,6 @@ public class CreateTransactionRequest {
     private UUID userId;
     private double amount;
     private PaymentMethod paymentMethod;
+    private UUID buyerId;
     // On pourrait ajouter ici paymentMethod si on voulait le choisir au début
 }

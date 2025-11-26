@@ -2,7 +2,7 @@ package com.polytech.transactions_service.service;
 
 import com.polytech.transactions_service.client.TicketClient;
 import com.polytech.transactions_service.client.UserClient;
-import com.polytech.transactions_service.client.dto.TicketDto;
+import com.polytech.transactions_service.dto.TicketDto;
 import com.polytech.transactions_service.dto.CreateTransactionRequest;
 import com.polytech.transactions_service.dto.UserDto;
 import com.polytech.transactions_service.event.PaymentValidatedEvent;
