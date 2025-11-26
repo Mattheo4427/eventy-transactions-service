@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import java.util.UUID;
 
 // "ticket-service" est le nom enregistré dans Eureka
-@FeignClient(name = "ticket-service")
+@FeignClient(name = "tickets-service")
 public interface TicketClient {
     
     // Récupérer les infos d'un ticket (Prix, Statut)

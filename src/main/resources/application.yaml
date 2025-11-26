@@ -54,3 +54,7 @@ keycloak:
   server-url: ${KEYCLOAK_SERVER_URL:http://keycloak:8080}
   realm: ${KEYCLOAK_REALM:eventy-realm}
 
+stripe:
+  api-key: ${STRIPE_API_KEY}
+  currency: eur
+

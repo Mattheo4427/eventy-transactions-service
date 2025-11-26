@@ -10,7 +10,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -22,16 +24,29 @@ public class TransactionController {
 
     /**
      * Initier un achat.
+     * Retourne la transaction ET le clientSecret Stripe nécessaire au front.
      */
     @PostMapping
-    public ResponseEntity<Transaction> createTransaction(
+    public ResponseEntity<Map<String, Object>> createTransaction(
             @RequestBody CreateTransactionRequest request,
             @AuthenticationPrincipal Jwt principal) {
-        
+
         String buyerId = principal.getSubject();
-        Transaction tx = transactionService.initiateTransaction(buyerId, request.getTicketId());
-        
-        return ResponseEntity.status(HttpStatus.CREATED).body(tx);
+
+        // 1. Initier la transaction (Création en base + Création PaymentIntent Stripe)
+        Transaction tx = transactionService.createTransaction(buyerId, request.getTicketId());
+
+        // 2. Récupérer le clientSecret Stripe via le service
+        // (Le PaymentIntent ID est stocké dans tx.getPaymentToken())
+        String clientSecret = transactionService.getStripeClientSecret(tx.getPaymentToken());
+
+        // 3. Construire la réponse composite
+        Map<String, Object> response = new HashMap<>();
+        response.put("transaction", tx);            // Données métier (montant, dates...)
+        response.put("transactionId", tx.getId());  // ID pratique pour le front
+        response.put("clientSecret", clientSecret); // LA clé pour Stripe React Native
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**

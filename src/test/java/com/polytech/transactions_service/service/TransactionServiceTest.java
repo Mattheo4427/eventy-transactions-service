@@ -69,7 +69,7 @@ class TransactionServiceTest {
         });
 
         // Act
-        Transaction result = transactionService.createTransaction(request);
+        Transaction result = transactionService.createTransaction(String.valueOf(buyerId), ticketId);
 
         // Assert
         assertThat(result).isNotNull();
@@ -91,7 +91,7 @@ class TransactionServiceTest {
         when(ticketClient.getTicketById(ticketId)).thenReturn(ticketDto);
 
         // Act & Assert
-        assertThrows(RuntimeException.class, () -> transactionService.createTransaction(request));
+        assertThrows(RuntimeException.class, () -> transactionService.createTransaction(String.valueOf(request.getBuyerId()), request.getTicketId()));
         verify(transactionRepository, never()).save(any());
     }
 

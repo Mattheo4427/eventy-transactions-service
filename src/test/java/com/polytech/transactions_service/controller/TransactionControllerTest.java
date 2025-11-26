@@ -63,7 +63,7 @@ class TransactionControllerTest {
 
         // CORRECTION ICI : On mock 'initiateTransaction' car c'est la méthode appelée par le contrôleur
         // Le contrôleur passe (String buyerId, UUID ticketId)
-        when(transactionService.initiateTransaction(eq(userId.toString()), eq(ticketId)))
+        when(transactionService.createTransaction(eq(userId.toString()), eq(ticketId)))
                 .thenReturn(transaction);
 
         // Act & Assert
