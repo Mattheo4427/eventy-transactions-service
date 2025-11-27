@@ -62,17 +62,16 @@ public class TransactionService {
         }
 
         // 2. Calculs Financiers
-        double originalPrice = ticket.getSalePrice();
-        double fees = Math.round(originalPrice * PLATFORM_FEE_PERCENTAGE * 100.0) / 100.0;
-        double totalAmount = originalPrice + fees;
-
+        double totalAmount = ticket.getSalePrice();
+        double fees = Math.round(totalAmount * PLATFORM_FEE_PERCENTAGE * 100.0) / 100.0;
+        double vendorNet = totalAmount - fees;
         // 3. Création de l'objet Transaction (PENDING)
         Transaction transaction = Transaction.builder()
                 .buyerId(UUID.fromString(buyerId))
                 .ticketId(ticketId)
                 .totalAmount(totalAmount)
                 .platformFee(fees)
-                .vendorAmount(originalPrice)
+                .vendorAmount(vendorNet)
                 .status(TransactionStatus.PENDING)
                 .paymentStatus(PaymentStatus.UNPAID)
                 .transactionDate(LocalDateTime.now())
@@ -152,7 +151,13 @@ public class TransactionService {
 
         // Vérification optionnelle auprès de Stripe pour être sûr que c'est payé
         // verifyStripePayment(transaction.getPaymentToken());
-
+        TicketDto ticket = null;
+        try {
+            ticket = ticketClient.getTicketById(transaction.getTicketId());
+        } catch (Exception e) {
+            log.error("Impossible de récupérer le ticket {} pour la transaction {}", transaction.getTicketId(), transactionId);
+            // On continue, mais le vendorId sera manquant (ou on throw pour annuler)
+        }
         // 1. Mise à jour statut
         transaction.setStatus(TransactionStatus.COMPLETED);
         transaction.setPaymentStatus(PaymentStatus.PAID);
@@ -183,6 +188,7 @@ public class TransactionService {
                 // ou l'ajouter au modèle Transaction lors de l'initiation.
                 .vendorAmount(transaction.getVendorAmount())
                 .amount(transaction.getTotalAmount())
+                .vendorId(ticket.getVendorId())
                 .build();
         kafkaTemplate.send("payment-validated", paymentEvent);
 
