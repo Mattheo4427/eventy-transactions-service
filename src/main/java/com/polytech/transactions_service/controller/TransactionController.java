@@ -88,6 +88,13 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getAllTransactions());
     }
 
+    @PostMapping("/admin/{id}/refund")
+    // @PreAuthorize("hasRole('ADMIN')") // À activer quand la sécu admin sera stricte
+    public ResponseEntity<Void> refundTransaction(@PathVariable UUID id) {
+        transactionService.refundTransaction(id);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{id}/cancel")
     public ResponseEntity<Void> cancelTransaction(@PathVariable UUID id) {
         transactionService.cancelTransaction(id);

@@ -5,6 +5,7 @@ import com.polytech.transactions_service.client.UserClient;
 import com.polytech.transactions_service.dto.TicketDto;
 import com.polytech.transactions_service.event.PaymentValidatedEvent;
 import com.polytech.transactions_service.event.TicketSoldEvent;
+import com.polytech.transactions_service.event.TransactionRefundedEvent;
 import com.polytech.transactions_service.model.Transaction;
 import com.polytech.transactions_service.model.enums.PaymentStatus;
 import com.polytech.transactions_service.model.enums.TransactionStatus;
@@ -12,7 +13,9 @@ import com.polytech.transactions_service.repository.TransactionRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.RefundCreateParams;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -272,7 +275,57 @@ public class TransactionService {
         }
     }
 
+    @Transactional
+    public void refundTransaction(UUID transactionId) {
+        // 1. Récupérer la transaction
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction introuvable"));
 
+        // Vérifier qu'elle est bien complétée
+        if (transaction.getStatus() != TransactionStatus.COMPLETED) {
+            throw new IllegalStateException("Seules les transactions complétées peuvent être remboursées.");
+        }
+
+        // 2. Récupérer les infos du ticket (pour avoir le vendorId qui n'est pas dans Transaction)
+        TicketDto ticket;
+        try {
+            ticket = ticketClient.getTicketById(transaction.getTicketId());
+        } catch (Exception e) {
+            throw new RuntimeException("Impossible de récupérer les infos du ticket pour le remboursement.");
+        }
+
+        // 3. Appel STRIPE (Remboursement réel de l'acheteur)
+        try {
+            Stripe.apiKey = stripeApiKey;
+            RefundCreateParams params = RefundCreateParams.builder()
+                    .setPaymentIntent(transaction.getPaymentToken()) // ID du paiement Stripe
+                    .build();
+            Refund refund = Refund.create(params);
+
+            if (!"succeeded".equals(refund.getStatus())) {
+                throw new RuntimeException("Le remboursement Stripe a échoué : " + refund.getStatus());
+            }
+        } catch (StripeException e) {
+            log.error("Erreur Stripe Refund", e);
+            throw new RuntimeException("Erreur Stripe : " + e.getMessage());
+        }
+
+        // 4. Mise à jour locale
+        transaction.setStatus(TransactionStatus.REFUNDED);
+        transaction.setPaymentStatus(PaymentStatus.REFUNDED);
+        transactionRepository.save(transaction);
+
+        // 5. Événement Kafka (Pour débiter le vendeur et annuler le ticket)
+        TransactionRefundedEvent event = TransactionRefundedEvent.builder()
+                .transactionId(transaction.getId())
+                .ticketId(transaction.getTicketId())
+                .vendorId(ticket.getVendorId())
+                .vendorAmount(transaction.getVendorAmount())
+                .build();
+
+        kafkaTemplate.send("transaction-refunded", event);
+        log.info("Transaction {} remboursée et événement Kafka envoyé.", transactionId);
+    }
 
     public List<Transaction> getUserHistory(UUID userId) {
         return transactionRepository.findByBuyerId(userId);
