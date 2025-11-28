@@ -57,10 +57,20 @@ public class TransactionService {
             throw new IllegalArgumentException("Ticket not found: " + ticketId);
         }
 
+        // 2. VERROUILLAGE (Réservation)
+        // On tente de réserver le ticket immédiatement.
+        // Si le ticket est déjà vendu ou réservé, TicketService renverra une erreur (409 ou 400),
+        // ce qui fera échouer cette méthode et empêchera la création du paiement.
+        try {
+            ticketClient.reserveTicket(ticketId);
+        } catch (FeignException e) {
+            throw new IllegalStateException("Le ticket n'est plus disponible.");
+        }
+        /*
         if (!"AVAILABLE".equalsIgnoreCase(ticket.getStatus())) {
             throw new IllegalStateException("Ticket is not available for sale (Status: " + ticket.getStatus() + ")");
         }
-
+        */
         // 2. Calculs Financiers
         double totalAmount = ticket.getSalePrice();
         double fees = Math.round(totalAmount * PLATFORM_FEE_PERCENTAGE * 100.0) / 100.0;
@@ -69,6 +79,7 @@ public class TransactionService {
         Transaction transaction = Transaction.builder()
                 .buyerId(UUID.fromString(buyerId))
                 .ticketId(ticketId)
+                .vendorId(ticket.getVendorId())
                 .totalAmount(totalAmount)
                 .platformFee(fees)
                 .vendorAmount(vendorNet)
@@ -117,6 +128,7 @@ public class TransactionService {
             return transaction; // Le contrôleur devra enrichir la réponse avec intent.getClientSecret()
 
         } catch (StripeException e) {
+            ticketClient.releaseTicket(ticketId);
             log.error("Erreur Stripe lors de l'initialisation du paiement", e);
             throw new RuntimeException("Erreur de paiement: " + e.getMessage());
         }
@@ -195,8 +207,79 @@ public class TransactionService {
         return savedTransaction;
     }
 
+
+    @Transactional
+    public void cancelTransaction(UUID transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction introuvable"));
+
+        if (transaction.getStatus() == TransactionStatus.PENDING) {
+            // Par défaut, on considère que c'est une annulation utilisateur
+            TransactionStatus finalStatus = TransactionStatus.CANCELED;
+
+            // Vérification "Intelligente" via Stripe
+            if (transaction.getPaymentToken() != null) {
+                try {
+                    Stripe.apiKey = stripeApiKey;
+                    PaymentIntent intent = PaymentIntent.retrieve(transaction.getPaymentToken());
+
+                    // Si l'objet PaymentIntent contient une erreur, c'est un ECHEC bancaire
+                    if (intent.getLastPaymentError() != null) {
+                        finalStatus = TransactionStatus.FAILED;
+                        log.info("Transaction {} marquée FAILED (Erreur Stripe détectée: {})",
+                                transactionId, intent.getLastPaymentError().getMessage());
+                    }
+                } catch (Exception e) {
+                    log.warn("Impossible de vérifier le statut Stripe pour la transaction {}", transactionId, e);
+                }
+            }
+
+            // 1. Mise à jour du statut (CANCELED ou FAILED selon l'analyse)
+            transaction.setStatus(finalStatus);
+            if (finalStatus == TransactionStatus.FAILED) {
+                transaction.setPaymentStatus(PaymentStatus.UNPAID); // ou FAILED si dispo
+            }
+            transactionRepository.save(transaction);
+
+            // 2. Libération du ticket
+            try {
+                ticketClient.releaseTicket(transaction.getTicketId());
+                log.info("Ticket {} libéré.", transaction.getTicketId());
+            } catch (Exception e) {
+                log.error("Erreur non-bloquante libération ticket {}", transaction.getTicketId(), e);
+            }
+        }
+    }
+
+    @Transactional
+    public void failTransaction(UUID transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction introuvable"));
+
+        if (transaction.getStatus() == TransactionStatus.PENDING) {
+            // 1. Statut FAILED
+            transaction.setStatus(TransactionStatus.FAILED);
+            transaction.setPaymentStatus(PaymentStatus.UNPAID); // Ou FAILED si vous l'avez dans l'enum
+            transactionRepository.save(transaction);
+
+            // 2. Libération du ticket (Même logique que l'annulation)
+            try {
+                ticketClient.releaseTicket(transaction.getTicketId());
+                log.info("Ticket {} libéré suite à l'échec de paiement {}", transaction.getTicketId(), transactionId);
+            } catch (Exception e) {
+                log.error("Erreur non-bloquante libération ticket {}", transaction.getTicketId(), e);
+            }
+        }
+    }
+
+
+
     public List<Transaction> getUserHistory(UUID userId) {
         return transactionRepository.findByBuyerId(userId);
+    }
+
+    public List<Transaction> getUserSales(UUID userId) {
+        return transactionRepository.findByVendorId(userId);
     }
 
     public Transaction getTransaction(UUID id) {
@@ -205,5 +288,24 @@ public class TransactionService {
 
     public List<Transaction> getAllTransactions() {
         return transactionRepository.findAll();
+    }
+
+    @Transactional
+    public void backfillVendorIds() {
+        List<Transaction> transactions = transactionRepository.findAll();
+        for (Transaction tx : transactions) {
+            if (tx.getVendorId() == null) {
+                try {
+                    TicketDto ticket = ticketClient.getTicketById(tx.getTicketId());
+                    if (ticket != null && ticket.getVendorId() != null) {
+                        tx.setVendorId(ticket.getVendorId());
+                        transactionRepository.save(tx);
+                        log.info("Backfilled vendorId for transaction {}", tx.getId());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to backfill vendorId for transaction {}", tx.getId(), e);
+                }
+            }
+        }
     }
 }

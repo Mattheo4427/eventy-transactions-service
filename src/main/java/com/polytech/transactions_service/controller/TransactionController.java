@@ -68,6 +68,12 @@ public class TransactionController {
         UUID userId = UUID.fromString(principal.getSubject());
         return ResponseEntity.ok(transactionService.getUserHistory(userId));
     }
+
+    @GetMapping("/sales")
+    public ResponseEntity<List<Transaction>> getMySales(@AuthenticationPrincipal Jwt principal) {
+        UUID userId = UUID.fromString(principal.getSubject());
+        return ResponseEntity.ok(transactionService.getUserSales(userId));
+    }
     
     @GetMapping("/{id}")
     public ResponseEntity<Transaction> getById(@PathVariable UUID id) {
@@ -80,5 +86,23 @@ public class TransactionController {
     // @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Transaction>> getAllTransactions() {
         return ResponseEntity.ok(transactionService.getAllTransactions());
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelTransaction(@PathVariable UUID id) {
+        transactionService.cancelTransaction(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/fail")
+    public ResponseEntity<Void> failTransaction(@PathVariable UUID id) {
+        transactionService.failTransaction(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/maintenance/backfill-vendors")
+    public ResponseEntity<Void> backfillVendors() {
+        transactionService.backfillVendorIds();
+        return ResponseEntity.ok().build();
     }
 }

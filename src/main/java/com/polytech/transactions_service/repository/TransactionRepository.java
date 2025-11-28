@@ -11,7 +11,11 @@ import java.util.UUID;
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
     // Historique des achats d'un utilisateur
     List<Transaction> findByBuyerId(UUID buyerId);
+
+    // Historique des ventes d'un utilisateur
+    List<Transaction> findByVendorId(UUID vendorId);
     
     // Retrouver la transaction liée à un ticket spécifique
     List<Transaction> findByTicketId(UUID ticketId);
+    
 }

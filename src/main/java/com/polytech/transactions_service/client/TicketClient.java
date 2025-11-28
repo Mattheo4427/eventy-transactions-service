@@ -20,4 +20,10 @@ public interface TicketClient {
     // Marquer un ticket comme vendu
     @PostMapping("/tickets/{id}/buy")
     void markTicketAsSold(@PathVariable("id") UUID ticketId);
+
+    @PostMapping("/tickets/{id}/reserve")
+    void reserveTicket(@PathVariable("id") UUID ticketId);
+
+    @PostMapping("/tickets/{id}/release")
+    void releaseTicket(@PathVariable("id") UUID ticketId);
 }

@@ -34,6 +34,9 @@ public class Transaction {
     @Column(name = "ticket_id", nullable = false)
     private UUID ticketId;
 
+    @Column(name = "vendor_id")
+    private UUID vendorId;
+
     // --- Informations Financières ---
     
     @Column(name = "total_amount", nullable = false)
